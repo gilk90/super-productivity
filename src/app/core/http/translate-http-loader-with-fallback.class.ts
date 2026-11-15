@@ -20,6 +20,8 @@ import EN_TRANSLATIONS from '../../../assets/i18n/en.json';
  * rejection reaches the GlobalErrorHandler and the app shows a crash card
  * instead of booting.
  *
+ * English itself is always served from the bundle without a request.
+ *
  * On a status-0 failure we fall back to the English translations bundled at
  * build time so the app boots with readable text rather than a crash card or
  * raw translation keys, and self-heals once a cached or online copy is
@@ -36,6 +38,12 @@ export class TranslateHttpLoaderWithFallback implements TranslateLoader {
   private _httpLoader = new TranslateHttpLoader();
 
   getTranslation(lang: string): Observable<TranslationObject> {
+    // English is already in the bundle (same build, same content), and it is
+    // always loaded as the fallback language, so fetching and parsing
+    // en.json again on every start is pure overhead.
+    if (lang === DEFAULT_LANGUAGE) {
+      return of(EN_TRANSLATIONS as TranslationObject);
+    }
     return this._httpLoader.getTranslation(lang).pipe(
       catchError((err: unknown) => {
         if (err instanceof HttpErrorResponse && err.status === 0) {

@@ -39,28 +39,21 @@ describe('TranslateHttpLoaderWithFallback', () => {
 
   it('returns the parsed translations on success', (done) => {
     // `unknown` avoids the deep recursive `TranslationObject` type blowing up inference.
-    loader.getTranslation('en').subscribe((res: unknown) => {
-      expect(res).toEqual({ HELLO: 'Hello' });
+    loader.getTranslation('de').subscribe((res: unknown) => {
+      expect(res).toEqual({ HELLO: 'Hallo' });
       done();
     });
 
-    httpMock.expectOne('./assets/i18n/en.json').flush({ HELLO: 'Hello' });
+    httpMock.expectOne('./assets/i18n/de.json').flush({ HELLO: 'Hallo' });
   });
 
-  it('falls back to bundled English on a status-0 (offline) error', (done) => {
-    loader.getTranslation('en').subscribe({
-      next: (res: unknown) => {
-        // The whole bundled en.json is returned so the app boots with readable
-        // text rather than raw keys.
-        expect(res).toBe(EN_TRANSLATIONS as unknown as object);
-        done();
-      },
-      error: () => done.fail('should not error on a status-0 failure'),
+  it('serves English from the bundle without a request', (done) => {
+    loader.getTranslation('en').subscribe((res: unknown) => {
+      expect(res).toBe(EN_TRANSLATIONS as unknown as object);
+      done();
     });
-
-    httpMock
-      .expectOne('./assets/i18n/en.json')
-      .error(new ProgressEvent('error'), { status: 0, statusText: '' });
+    // afterEach httpMock.verify() fails if en.json was requested.
+    httpMock.expectNone('./assets/i18n/en.json');
   });
 
   it('falls back to bundled English even for a non-English language on a status-0 error', (done) => {
@@ -78,7 +71,7 @@ describe('TranslateHttpLoaderWithFallback', () => {
   });
 
   it('rethrows non-status-0 errors (e.g. 404) so real deploy issues stay visible', (done) => {
-    loader.getTranslation('en').subscribe({
+    loader.getTranslation('de').subscribe({
       next: () => done.fail('should not emit a value on a 404'),
       error: (err: unknown) => {
         expect(err).toBeInstanceOf(HttpErrorResponse);
@@ -88,7 +81,7 @@ describe('TranslateHttpLoaderWithFallback', () => {
     });
 
     httpMock
-      .expectOne('./assets/i18n/en.json')
+      .expectOne('./assets/i18n/de.json')
       .flush('Not found', { status: 404, statusText: 'Not Found' });
   });
 });
