@@ -1041,6 +1041,43 @@ export class PluginBridgeService implements OnDestroy {
     }
   }
 
+    /**
+   * Permanently delete an archived task and all of its archived descendants.
+   */
+  async deleteArchivedTask(taskId: string): Promise<void> {
+    pluginAssert.string(taskId);
+
+    try {
+      const taskArchive = await this._taskArchiveService.load();
+      if (!taskArchive.entities[taskId]) {
+        throw new Error(
+          this._translateService.instant(T.PLUGINS.TASK_NOT_FOUND, { taskId }),
+        );
+      }
+
+      // Collect the task and every archived descendant, so no orphan is left behind.
+      const idsToDelete = new Set<string>();
+      const queue: string[] = [taskId];
+      while (queue.length) {
+        const id = queue.shift() as string;
+        const archived = taskArchive.entities[id];
+        if (!archived || idsToDelete.has(id)) continue;
+        idsToDelete.add(id);
+        queue.push(...(archived.subTaskIds || []));
+      }
+
+      await this._taskArchiveService.deleteTasks([...idsToDelete]);
+
+      PluginLog.log('PluginBridge: Archived task deleted', {
+        taskId,
+        removedCount: idsToDelete.size,
+      });
+    } catch (error) {
+      PluginLog.err('PluginBridge: Failed to delete archived task:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get all projects
    */

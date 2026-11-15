@@ -798,6 +798,12 @@ export interface PluginAPI {
 
   deleteTask(taskId: string): Promise<void>;
 
+    /**
+   * Permanently delete a task that is in the archive, together with its archived
+   * subtasks. Active tasks must be deleted with deleteTask.
+   */
+  deleteArchivedTask(taskId: string): Promise<void>;
+
   batchUpdateForProject(request: BatchUpdateRequest): Promise<BatchUpdateResult>;
 
   // projects
