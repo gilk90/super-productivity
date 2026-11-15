@@ -14,7 +14,7 @@ import { LS } from '../persistence/storage-keys.const';
 import { environment } from '../../../environments/environment';
 
 const RELEASES_API_URL =
-  'https://api.github.com/repos/super-productivity/super-productivity/releases/latest';
+  'https://api.github.com/repos/gilk90/super-productivity/releases/latest';
 
 describe('UpdateCheckService', () => {
   let service: UpdateCheckService;
@@ -183,7 +183,7 @@ describe('UpdateCheckService', () => {
       banner.action?.fn();
       expect(localStorage.getItem(LS.UPDATE_CHECK_DISMISSED_VERSION)).toBe('v99.0.0');
       expect(openExternalUrl).toHaveBeenCalledWith(
-        'https://super-productivity.com/download/',
+        'https://github.com/gilk90/super-productivity/releases/latest',
       );
     });
 

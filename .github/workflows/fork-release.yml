@@ -1,0 +1,214 @@
+# Release workflow for this fork (gilk90/super-productivity).
+#
+# The upstream workflows (build.yml, build-android.yml, the store workflows)
+# sign and publish with upstream's certificates, keystore and store accounts,
+# which this fork does not have. This workflow builds UNSIGNED desktop
+# packages and an APK signed with the fork's own key, and publishes them as a
+# GitHub release here.
+#
+# The tag has no `v` prefix on purpose: upstream workflows trigger on `v*`
+# tags. Use the form `<package version>-gilk.<n>`, e.g. 20.0.0-gilk.1, which
+# the in-app update check accepts (src/app/core/update-check).
+#
+# Android needs four repository secrets (Settings > Secrets and variables >
+# Actions): FORK_ANDROID_KEYSTORE_B64, FORK_ANDROID_KEYSTORE_PASSWORD,
+# FORK_ANDROID_KEY_ALIAS, FORK_ANDROID_KEY_PASSWORD. Without them the Android
+# job fails and the release ships the desktop builds only. Keep the same key
+# for every release: Android refuses updates signed with a different key.
+name: Fork Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag, e.g. 20.0.0-gilk.1 (no leading v)'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' is not a version tag like 20.0.0-gilk.1 (no leading v)"
+            exit 1
+          fi
+
+  desktop:
+    needs: check-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+            args: --linux AppImage deb --x64
+            files: |
+              .tmp/app-builds/*.AppImage
+              .tmp/app-builds/*.deb
+          - os: windows-latest
+            name: windows
+            args: --win nsis portable
+            files: |
+              .tmp/app-builds/*.exe
+          - os: macos-15
+            name: macos
+            # Unsigned and not notarized: no Apple certificate in this fork.
+            args: >-
+              --mac dmg --universal
+              -c.mac.notarize=false -c.mac.identity=null
+              -c.mac.provisioningProfile=null -c.dmg.sign=false
+            files: |
+              .tmp/app-builds/*.dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Electron build environment
+        uses: ./.github/actions/setup-electron-build
+
+      - name: Install npm Packages
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 15
+          shell: bash
+          command: |
+            if [ "$RUNNER_OS" = "Windows" ]; then npm install @nx/nx-win32-x64-msvc; fi
+            npm i
+
+      - name: Build frontend and Electron main process
+        shell: bash
+        run: npm run buildFrontend:prod:es6 && npm run electron:build
+
+      - name: Package
+        shell: bash
+        run: npx electron-builder --publish never ${{ matrix.args }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  android:
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.FORK_ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::FORK_ANDROID_KEYSTORE_B64 is not set; see the header of fork-release.yml"
+            exit 1
+          fi
+
+      - name: Check out Git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - name: Install npm Packages
+        run: npm i
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.FORK_ANDROID_KEYSTORE_B64 }}
+        # android/app/build.gradle reads ../../keystore.jks
+        run: echo "$KEYSTORE_B64" | base64 --decode > keystore.jks
+
+      - name: Build web app and sync it into the Android project
+        run: npm run buildFrontend:prodWeb && npm run sync:android
+
+      - name: Build signed APK (F-Droid flavor, no Google services)
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.FORK_ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEYSTORE_ALIAS: ${{ secrets.FORK_ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.FORK_ANDROID_KEY_PASSWORD }}
+        working-directory: android
+        run: ./gradlew assembleFdroidRelease
+
+      - name: Rename APK
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          apk=$(ls android/app/build/outputs/apk/fdroid/release/*.apk | head -n 1)
+          mkdir -p out
+          cp "$apk" "out/super-productivity-$VERSION.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android
+          path: out/*.apk
+          if-no-files-found: error
+
+  release:
+    needs: [desktop, android]
+    # Publish when every desktop build succeeded, even if Android was skipped
+    # for missing secrets.
+    if: ${{ !cancelled() && needs.desktop.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          ANDROID_RESULT: ${{ needs.android.result }}
+        run: |
+          ls -la dist
+          {
+            echo "Build of this fork (\`${GITHUB_SHA::7}\`)."
+            echo
+            echo "**Unsigned desktop builds**: Windows shows an \"unknown publisher\""
+            echo "warning (More info > Run anyway); on macOS right-click the app > Open"
+            echo "the first time."
+            if [ "$ANDROID_RESULT" != "success" ]; then
+              echo
+              echo "Android: not included in this release (signing secrets missing or build failed)."
+            fi
+          } > notes.md
+          gh release create "$VERSION" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Super Productivity $VERSION" \
+            --notes-file notes.md
