@@ -1,0 +1,243 @@
+<div class="page-wrapper">
+  <div class="filters">
+    <mat-form-field
+      appearance="outline"
+      class="filter-search"
+    >
+      <mat-label>{{ T.F.ARCHIVE.SEARCH | translate }}</mat-label>
+      <input
+        matInput
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event); onFilterChange()"
+      />
+      @if (searchTerm()) {
+        <button
+          mat-icon-button
+          matSuffix
+          [attr.aria-label]="T.G.CLEAR | translate"
+          (click)="searchTerm.set(''); onFilterChange()"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
+    <mat-form-field
+      appearance="outline"
+      class="filter-field"
+    >
+      <mat-label>{{ T.F.ARCHIVE.FILTER_PROJECT | translate }}</mat-label>
+      <mat-select
+        [value]="projectId()"
+        (valueChange)="projectId.set($event); onFilterChange()"
+      >
+        <mat-option [value]="null">{{
+          T.F.ARCHIVE.FILTER_ALL_PROJECTS | translate
+        }}</mat-option>
+        @for (project of projects(); track project.id) {
+          <mat-option [value]="project.id">{{ project.title }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field
+      appearance="outline"
+      class="filter-field"
+    >
+      <mat-label>{{ T.F.ARCHIVE.FILTER_TAG | translate }}</mat-label>
+      <mat-select
+        [value]="tagId()"
+        (valueChange)="tagId.set($event); onFilterChange()"
+      >
+        <mat-option [value]="null">{{
+          T.F.ARCHIVE.FILTER_ALL_TAGS | translate
+        }}</mat-option>
+        @for (tag of tags(); track tag.id) {
+          <mat-option [value]="tag.id">{{ tag.title }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field
+      appearance="outline"
+      class="filter-field"
+    >
+      <mat-label>{{ T.F.ARCHIVE.FILTER_FROM | translate }}</mat-label>
+      <input
+        matInput
+        type="date"
+        [ngModel]="fromDay()"
+        (ngModelChange)="fromDay.set($event || ''); onFilterChange()"
+      />
+    </mat-form-field>
+
+    <mat-form-field
+      appearance="outline"
+      class="filter-field"
+    >
+      <mat-label>{{ T.F.ARCHIVE.FILTER_TO | translate }}</mat-label>
+      <input
+        matInput
+        type="date"
+        [ngModel]="toDay()"
+        (ngModelChange)="toDay.set($event || ''); onFilterChange()"
+      />
+    </mat-form-field>
+
+    @if (isFiltered()) {
+      <button
+        mat-button
+        (click)="clearFilters()"
+      >
+        {{ T.F.ARCHIVE.CLEAR_FILTERS | translate }}
+      </button>
+    }
+  </div>
+
+  <section class="component-wrapper">
+    @if (isLoading()) {
+      <p class="empty-state">{{ T.F.ARCHIVE.LOADING | translate }}</p>
+    } @else if (totalCount() === 0) {
+      <p class="empty-state">{{ T.F.ARCHIVE.EMPTY | translate }}</p>
+    } @else {
+      <div
+        class="toolbar"
+        role="toolbar"
+        [attr.aria-label]="T.F.ARCHIVE.ACTIONS | translate"
+      >
+        <mat-checkbox
+          [checked]="isAllShownSelected()"
+          [indeterminate]="isSomeShownSelected()"
+          [disabled]="shownRows().length === 0 || isBusy()"
+          [attr.aria-label]="T.F.ARCHIVE.SELECT_ALL | translate"
+          [matTooltip]="T.F.ARCHIVE.SELECT_ALL | translate"
+          (change)="toggleAllShown($event.checked)"
+        ></mat-checkbox>
+
+        <span class="count">
+          @if (selectedCount() > 0) {
+            {{ T.F.ARCHIVE.SELECTED | translate: { count: selectedCount() } }}
+          } @else {
+            {{
+              T.F.ARCHIVE.COUNT
+                | translate: { shown: filteredRows().length, total: totalCount() }
+            }}
+          }
+        </span>
+
+        <button
+          mat-button
+          [disabled]="selectedRestorableIds().length === 0 || isBusy()"
+          (click)="restore(selectedRestorableIds())"
+        >
+          <mat-icon>unarchive</mat-icon>
+          {{ T.F.ARCHIVE.BTN_RESTORE | translate }}
+        </button>
+        <button
+          mat-button
+          [disabled]="selectedCount() === 0 || isBusy()"
+          (click)="deletePermanently([...selectedIds()])"
+        >
+          <mat-icon>delete_forever</mat-icon>
+          {{ T.F.ARCHIVE.BTN_DELETE | translate }}
+        </button>
+        <button
+          mat-button
+          [disabled]="filteredRows().length === 0"
+          [matMenuTriggerFor]="exportMenu"
+        >
+          <mat-icon>download</mat-icon>
+          {{ T.F.ARCHIVE.BTN_EXPORT | translate }}
+        </button>
+        <mat-menu #exportMenu="matMenu">
+          <button
+            mat-menu-item
+            (click)="export('csv')"
+          >
+            {{ T.F.ARCHIVE.EXPORT_CSV | translate }}
+          </button>
+          <button
+            mat-menu-item
+            (click)="export('md')"
+          >
+            {{ T.F.ARCHIVE.EXPORT_MD | translate }}
+          </button>
+        </mat-menu>
+      </div>
+
+      @if (filteredRows().length === 0) {
+        <p class="empty-state">{{ T.F.ARCHIVE.NO_MATCH | translate }}</p>
+      } @else {
+        <ul
+          class="task-list"
+          [attr.aria-label]="T.MH.ARCHIVED_TASKS | translate"
+        >
+          @for (row of shownRows(); track row.task.id) {
+            <li class="task-row">
+              <mat-checkbox
+                [checked]="selectedIds().has(row.task.id)"
+                [disabled]="isBusy()"
+                [attr.aria-label]="row.task.title"
+                (change)="toggleSelected(row.task.id, $event.checked)"
+              ></mat-checkbox>
+              <div class="task-main">
+                <span class="task-title">{{ row.task.title }}</span>
+                <span class="task-meta">
+                  @if (row.task.projectId && projectTitles()[row.task.projectId]) {
+                    <span>{{ projectTitles()[row.task.projectId] }}</span>
+                  }
+                  <span>{{ row.sortTime | date: 'mediumDate' }}</span>
+                  @if (row.task.timeSpent) {
+                    <span>{{ row.task.timeSpent | msToString }}</span>
+                  }
+                  @if (row.subTasks.length) {
+                    <span>{{
+                      T.F.ARCHIVE.SUBTASKS | translate: { count: row.subTasks.length }
+                    }}</span>
+                  }
+                </span>
+              </div>
+              @if (!row.task.parentId) {
+                <button
+                  mat-icon-button
+                  [disabled]="isBusy()"
+                  [matTooltip]="T.F.ARCHIVE.BTN_RESTORE | translate"
+                  [attr.aria-label]="T.F.ARCHIVE.BTN_RESTORE | translate"
+                  (click)="restore([row.task.id])"
+                >
+                  <mat-icon>unarchive</mat-icon>
+                </button>
+              } @else {
+                <mat-icon
+                  class="orphan-icon"
+                  [matTooltip]="T.F.ARCHIVE.ORPHAN_SUBTASK | translate"
+                  [attr.aria-label]="T.F.ARCHIVE.ORPHAN_SUBTASK | translate"
+                  >subdirectory_arrow_right</mat-icon
+                >
+              }
+              <button
+                mat-icon-button
+                [disabled]="isBusy()"
+                [matTooltip]="T.F.ARCHIVE.BTN_DELETE | translate"
+                [attr.aria-label]="T.F.ARCHIVE.BTN_DELETE | translate"
+                (click)="deletePermanently([row.task.id])"
+              >
+                <mat-icon>delete_forever</mat-icon>
+              </button>
+            </li>
+          }
+        </ul>
+        @if (hasMore()) {
+          <div class="show-more">
+            <button
+              mat-button
+              (click)="showMore()"
+            >
+              {{ T.F.ARCHIVE.BTN_SHOW_MORE | translate }}
+            </button>
+          </div>
+        }
+      }
+    }
+  </section>
+</div>

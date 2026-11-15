@@ -509,6 +509,7 @@ export class PageTitleComponent {
     [/donate$/, T.MH.DONATE, NAV_SECTION_ICON.DONATE],
     [/config$/, T.PS.GLOBAL_SETTINGS, NAV_SECTION_ICON.SETTINGS],
     [/archived-projects$/, T.MH.ARCHIVED_PROJECTS, NAV_SECTION_ICON.ARCHIVED_PROJECTS],
+    [/^\/archive$/, T.MH.ARCHIVED_TASKS, NAV_SECTION_ICON.ARCHIVED_TASKS],
   ];
 
   private _routeSection = computed(() =>
