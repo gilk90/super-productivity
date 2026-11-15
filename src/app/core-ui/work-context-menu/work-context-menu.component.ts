@@ -27,6 +27,7 @@ import {
   getProjectCompletionStats,
   ProjectCompletionStats,
 } from '../../features/project/project-completion-stats.util';
+import { DialogProjectCompleteComponent } from '../../features/project/dialog-project-complete/dialog-project-complete.component';
 import {
   DialogCompleteResolveTasksComponent,
   ResolveUnfinishedTasksChoice,
@@ -304,7 +305,7 @@ export class WorkContextMenuComponent implements OnInit, OnChanges {
       await this._router.navigateByUrl('/');
     }
 
-    await this._openCelebrationDialog(project, stats);
+    this._openCelebrationDialog(project, stats);
   }
 
   private async _applyResolution(
@@ -318,13 +319,7 @@ export class WorkContextMenuComponent implements OnInit, OnChanges {
     }
   }
 
-  private async _openCelebrationDialog(
-    project: Project,
-    stats: ProjectCompletionStats,
-  ): Promise<void> {
-    // Loaded on demand: only shown when a project is completed.
-    const { DialogProjectCompleteComponent } =
-      await import('../../features/project/dialog-project-complete/dialog-project-complete.component');
+  private _openCelebrationDialog(project: Project, stats: ProjectCompletionStats): void {
     // Fullscreen sizing lives in the .project-complete-fullscreen-dialog
     // panelClass (handles dvh + mobile safe-areas); don't duplicate it here.
     this._matDialog.open(DialogProjectCompleteComponent, {
