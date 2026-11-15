@@ -126,6 +126,20 @@ describe('ArchivePageComponent', () => {
     expect(component.selectedCount()).toBe(0);
   });
 
+  it('clears the selection when a filter changes, so hidden rows are never acted on', async () => {
+    await setup([
+      task('a', { title: 'Write report' }),
+      task('b', { title: 'Call bank' }),
+    ]);
+    component.toggleAllShown(true);
+    expect(component.selectedCount()).toBe(2);
+
+    component.searchTerm.set('bank');
+    component.onFilterChange();
+
+    expect(component.selectedCount()).toBe(0);
+  });
+
   it('selects and restores only restorable tasks', async () => {
     await setup([task('root'), task('orphan', { parentId: 'gone' })]);
 

@@ -73,9 +73,16 @@ export const compressArchive = createAction(
  * only finds nothing left in the archive.
  *
  * `entityType: 'ALL'` (like compressArchive): the op names no entity, so it is
- * never part of an entity conflict. Released clients that predate this action
- * apply it as an unknown action type, a no-op that leaves their archived copy
- * in place until they update; nothing is lost.
+ * never part of an entity conflict.
+ *
+ * Known limits (accepted, see the PR):
+ * - Released clients that predate this action apply it as an unknown action
+ *   type: a no-op that is marked applied, so they keep the archived copy for
+ *   good, even after updating. Their archive can reintroduce the task, e.g. in
+ *   a file-based upload or a "use local" SYNC_IMPORT.
+ * - A restore that is then archived again, concurrently with this delete,
+ *   does not converge: clients that apply the delete last lose the task, the
+ *   others keep it archived. The op names no entity, so no conflict is raised.
  */
 export const deleteArchivedTasks = createAction(
   '[Archive] Delete Archived Tasks',

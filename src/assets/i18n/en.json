@@ -126,7 +126,7 @@
       "BTN_SHOW_MORE": "Show more",
       "CLEAR_FILTERS": "Clear filters",
       "COUNT": "{{shown}} of {{total}} archived tasks",
-      "D_CONFIRM_DELETE": "Permanently delete {{count}} archived task(s) and their subtasks? This removes them from every synced device and cannot be undone.",
+      "D_CONFIRM_DELETE": "Permanently delete {{count}} archived task(s) and their subtasks? This cannot be undone. Synced devices remove them too once they run this app version or newer.",
       "EMPTY": "No archived tasks.",
       "EXPORT_CSV": "Export as CSV",
       "EXPORT_MD": "Export as Markdown",

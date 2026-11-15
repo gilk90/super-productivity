@@ -138,14 +138,16 @@ export class ArchivePageComponent implements OnInit {
       !this.isAllShownSelected() &&
       this.shownRows().some((row) => this.selectedIds().has(row.task.id)),
   );
-  readonly selectedRestorableIds = computed(() =>
-    this._rows()
-      .filter(
-        (row) =>
-          this.selectedIds().has(row.task.id) && isRestorableArchivedTask(row.task),
-      )
-      .map((row) => row.task.id),
+  private readonly _rowsById = computed(
+    () => new Map(this._rows().map((row) => [row.task.id, row])),
   );
+  readonly selectedRestorableIds = computed(() => {
+    const rowsById = this._rowsById();
+    return [...this.selectedIds()].filter((id) => {
+      const row = rowsById.get(id);
+      return !!row && isRestorableArchivedTask(row.task);
+    });
+  });
 
   ngOnInit(): void {
     void this._load();
@@ -153,6 +155,8 @@ export class ArchivePageComponent implements OnInit {
 
   onFilterChange(): void {
     this.shownCount.set(ARCHIVE_PAGE_SIZE);
+    // A selection the new filter hides must not be acted on unseen.
+    this.selectedIds.set(new Set());
   }
 
   clearFilters(): void {
@@ -239,6 +243,8 @@ export class ArchivePageComponent implements OnInit {
       selected.size > 0
         ? this.filteredRows().filter((row) => selected.has(row.task.id))
         : this.filteredRows();
+    // Selection is cleared on every filter change, so it is always a subset of
+    // the filtered rows: export, restore and delete act on the same tasks.
     if (rows.length === 0) return;
     const names: ArchivedTaskExportNames = {
       projectTitles: this.projectTitles(),

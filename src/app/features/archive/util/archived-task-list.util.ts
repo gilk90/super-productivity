@@ -11,6 +11,8 @@ export interface ArchivedTaskRow {
   subTasks: Task[];
   /** Completion time, falling back to creation time for tasks without one. */
   sortTime: number;
+  /** Lower-cased title, notes and subtask titles, built once for search. */
+  searchText: string;
 }
 
 export interface ArchivedTaskFilter {
@@ -64,18 +66,16 @@ export const buildArchivedTaskRows = (archive: TaskArchive): ArchivedTaskRow[] =
     const subTasks = (task.subTaskIds || [])
       .map((subId) => entities[subId])
       .filter((sub): sub is Task => !!sub);
-    rows.push({ task, subTasks, sortTime: task.doneOn || task.created || 0 });
+    const searchText = [task.title, task.notes || '', ...subTasks.map((sub) => sub.title)]
+      .join('\n')
+      .toLowerCase();
+    rows.push({ task, subTasks, sortTime: task.doneOn || task.created || 0, searchText });
   }
   return rows.sort((a, b) => b.sortTime - a.sortTime);
 };
 
 /** Only a root task (no parent) can be restored; its subtasks come with it. */
 export const isRestorableArchivedTask = (task: Task): boolean => !task.parentId;
-
-const matchesTerm = (row: ArchivedTaskRow, term: string): boolean =>
-  row.task.title.toLowerCase().includes(term) ||
-  (row.task.notes || '').toLowerCase().includes(term) ||
-  row.subTasks.some((sub) => sub.title.toLowerCase().includes(term));
 
 export const filterArchivedTaskRows = (
   rows: readonly ArchivedTaskRow[],
@@ -91,7 +91,7 @@ export const filterArchivedTaskRows = (
       if (fromDay && day < fromDay) return false;
       if (toDay && day > toDay) return false;
     }
-    return !term || matchesTerm(row, term);
+    return !term || row.searchText.includes(term);
   });
 };
 

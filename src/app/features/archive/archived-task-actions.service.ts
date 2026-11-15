@@ -38,10 +38,18 @@ export class ArchivedTaskActionsService {
     }
     this._store.dispatch(deleteArchivedTasks({ taskIds: idsToDelete }));
     await this._archiveOperationHandler.whenLocalOperationsSettled();
+    // The queued side effect swallows its own errors, so check what is left
+    // instead of reporting success for a write that did not land.
+    const after = await this._taskArchiveService.load();
+    const leftCount = idsToDelete.filter((id) => !!after.entities[id]).length;
     Log.log('[ArchivedTaskActions] deleted permanently', {
       requested: taskIds.length,
-      removed: idsToDelete.length,
+      removed: idsToDelete.length - leftCount,
+      left: leftCount,
     });
+    if (leftCount > 0) {
+      throw new Error(`Archive delete did not complete (${leftCount} left)`);
+    }
     return idsToDelete.length;
   }
 

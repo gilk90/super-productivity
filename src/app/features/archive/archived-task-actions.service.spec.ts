@@ -54,6 +54,17 @@ describe('ArchivedTaskActionsService', () => {
 
   describe('deletePermanently', () => {
     it('dispatches one synced op with the roots and all their descendants', async () => {
+      taskArchiveService.load.and.returnValues(
+        Promise.resolve(
+          archiveOf(
+            task('root', { subTaskIds: ['sub'] }),
+            task('sub', { parentId: 'root' }),
+            task('orphan', { parentId: 'gone' }),
+            task('other'),
+          ),
+        ),
+        Promise.resolve(archiveOf(task('other'))),
+      );
       const removed = await service.deletePermanently(['root', 'orphan']);
 
       expect(removed).toBe(3);
@@ -61,6 +72,13 @@ describe('ArchivedTaskActionsService', () => {
         deleteArchivedTasks({ taskIds: ['root', 'orphan', 'sub'] }),
       );
       expect(archiveHandler.whenLocalOperationsSettled).toHaveBeenCalled();
+    });
+
+    it('throws when the archive write did not land', async () => {
+      // load() keeps returning the unchanged archive: the delete failed locally.
+      await expectAsync(service.deletePermanently(['other'])).toBeRejectedWithError(
+        /did not complete \(1 left\)/,
+      );
     });
 
     it('dispatches nothing when no id is archived', async () => {
