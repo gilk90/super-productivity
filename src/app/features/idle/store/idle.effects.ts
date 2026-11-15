@@ -32,12 +32,11 @@ import {
   withLatestFrom,
 } from 'rxjs/operators';
 import { lazySetInterval } from '../../../../../electron/shared-with-frontend/lazy-set-interval';
-import { EMPTY, iif, Observable, of } from 'rxjs';
+import { EMPTY, from, iif, Observable, of } from 'rxjs';
 import { IPC } from '../../../../../electron/shared-with-frontend/ipc-events.const';
 import { SimpleCounterService } from '../../simple-counter/simple-counter.service';
 import { selectIdleTime, selectIsIdle } from './idle.selectors';
 import { turnOffAllSimpleCounterCounters } from '../../simple-counter/store/simple-counter.actions';
-import { DialogIdleComponent } from '../dialog-idle/dialog-idle.component';
 import { selectIdleConfig } from '../../config/store/global-config.reducer';
 import { devError } from '../../../util/dev-error';
 import {
@@ -257,22 +256,27 @@ export class IdleEffects {
       // use exhaustMap to prevent opening up multiple dialogs
       exhaustMap(
         ({ enabledSimpleStopWatchCounters, lastCurrentTaskId, wasFocusSessionRunning }) =>
-          this._matDialog
-            .open<
-              DialogIdleComponent,
-              DialogIdlePassedData,
-              DialogIdleReturnData | undefined
-            >(DialogIdleComponent, {
-              restoreFocus: true,
-              disableClose: true,
-              closeOnNavigation: false,
-              data: {
-                lastCurrentTaskId,
-                enabledSimpleStopWatchCounters,
-                wasFocusSessionRunning,
-              },
-            })
-            .afterClosed(),
+          // Loaded on demand: the idle dialog is not needed to start the app.
+          from(import('../dialog-idle/dialog-idle.component')).pipe(
+            switchMap(({ DialogIdleComponent }) =>
+              this._matDialog
+                .open<
+                  InstanceType<typeof DialogIdleComponent>,
+                  DialogIdlePassedData,
+                  DialogIdleReturnData | undefined
+                >(DialogIdleComponent, {
+                  restoreFocus: true,
+                  disableClose: true,
+                  closeOnNavigation: false,
+                  data: {
+                    lastCurrentTaskId,
+                    enabledSimpleStopWatchCounters,
+                    wasFocusSessionRunning,
+                  },
+                })
+                .afterClosed(),
+            ),
+          ),
       ),
       tap((dialogRes) => {
         if (!dialogRes) {
