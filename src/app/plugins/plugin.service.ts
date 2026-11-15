@@ -101,6 +101,7 @@ export class PluginService implements OnDestroy {
   // Lazy loading state management
   private _pluginStates = signal<Map<string, PluginState>>(new Map());
   public readonly pluginStates = this._pluginStates.asReadonly();
+  private readonly _stateWaiters = new Set<() => void>();
 
   // Track active side panel plugin
   private _activeSidePanelPlugin$ = new BehaviorSubject<PluginInstance | null>(null);
@@ -413,11 +414,8 @@ export class PluginService implements OnDestroy {
   }
 
   private _setPluginState(pluginId: string, state: PluginState): void {
-    this._pluginStates.update((states) => {
-      const newStates = new Map(states);
-      newStates.set(pluginId, state);
-      return newStates;
-    });
+    this._pluginStates.update((states) => new Map(states).set(pluginId, state));
+    this._stateWaiters.forEach((waiter) => waiter());
   }
 
   private _deletePluginState(pluginId: string): void {
@@ -426,6 +424,7 @@ export class PluginService implements OnDestroy {
       newStates.delete(pluginId);
       return newStates;
     });
+    this._stateWaiters.forEach((waiter) => waiter());
   }
 
   private _getPluginState(pluginId: string): PluginState | undefined {
@@ -468,26 +467,20 @@ export class PluginService implements OnDestroy {
 
     // If currently loading, wait for it
     if (state.status === 'loading') {
-      // Wait for status to change (max 10 seconds)
-      const maxAttempts = 100;
-      let attempts = 0;
+      // Wait (max 10s) for the state to leave 'loading'; woken by _setPluginState.
       await new Promise<void>((resolve, reject) => {
-        const checkStatus = setInterval(() => {
-          attempts++;
-          if (attempts > maxAttempts) {
-            clearInterval(checkStatus);
-            reject(new Error(`Plugin loading timeout after ${maxAttempts * 100}ms`));
-            return;
-          }
-          const currentState = this._getPluginState(pluginId);
-          if (currentState && currentState.status !== 'loading') {
-            clearInterval(checkStatus);
-            resolve();
-          }
-        }, 100);
-      }).catch((err) => {
-        PluginLog.err('Plugin activation error:', err);
-      });
+        const timer = setTimeout(() => {
+          this._stateWaiters.delete(waiter);
+          reject(new Error('Plugin loading timeout after 10000ms'));
+        }, 10_000);
+        const waiter = (): void => {
+          if (this._getPluginState(pluginId)?.status === 'loading') return;
+          clearTimeout(timer);
+          this._stateWaiters.delete(waiter);
+          resolve();
+        };
+        this._stateWaiters.add(waiter);
+      }).catch((err) => PluginLog.err('Plugin activation error:', err));
 
       const updatedState = this._getPluginState(pluginId);
       return updatedState?.instance || null;
@@ -1525,6 +1518,7 @@ export class PluginService implements OnDestroy {
       }
       return updated;
     });
+    this._stateWaiters.forEach((waiter) => waiter());
     this._pluginIconsSignal.set(new Map(this._pluginIcons));
     // Purge local-only credentials + persisted consent after teardown has released the
     // live grants. Each purge is best-effort and idempotent, so a single failure can't

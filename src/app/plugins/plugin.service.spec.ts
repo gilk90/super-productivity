@@ -506,6 +506,57 @@ describe('PluginService', () => {
     );
   });
 
+  it('activatePlugin on a loading plugin resolves as soon as loading finishes', async () => {
+    const setState = (
+      service as unknown as {
+        _setPluginState: (pluginId: string, state: PluginState) => void;
+      }
+    )._setPluginState.bind(service);
+    const base: PluginState = {
+      manifest: mockManifest,
+      status: 'loading',
+      path: 'assets/bundled-plugins/test',
+      type: 'built-in',
+      isEnabled: true,
+    };
+    setState(mockManifest.id, base);
+
+    const pending = service.activatePlugin(mockManifest.id);
+    // An unrelated state change must not end the wait early.
+    setState('other-plugin', {
+      ...base,
+      manifest: { ...mockManifest, id: 'other-plugin' },
+    });
+    setState(mockManifest.id, { ...base, status: 'loaded', instance: loadedPlugin });
+
+    expect(await pending).toBe(loadedPlugin);
+    expect(pluginRunner.loadPlugin).not.toHaveBeenCalled();
+  });
+
+  it('activatePlugin on a loading plugin gives up after 10s', async () => {
+    jasmine.clock().install();
+    try {
+      (
+        service as unknown as {
+          _setPluginState: (pluginId: string, state: PluginState) => void;
+        }
+      )._setPluginState(mockManifest.id, {
+        manifest: mockManifest,
+        status: 'loading',
+        path: 'assets/bundled-plugins/test',
+        type: 'built-in',
+        isEnabled: true,
+      });
+
+      const pending = service.activatePlugin(mockManifest.id);
+      jasmine.clock().tick(10_001);
+
+      expect(await pending).toBeNull();
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('does not serve iframe HTML for plugins that are not loaded and enabled', () => {
     const manifest: PluginManifest = {
       ...mockManifest,

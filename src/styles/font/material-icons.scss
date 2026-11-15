@@ -11,7 +11,7 @@
   // `block` (not `swap`) so the brief load window renders blank glyph space instead
   // of the ligature names (e.g. "settings", "wb_sunny") as fallback-font text (#8138).
   font-display: block;
-  src: url('../../assets/fonts/material-symbols-outlined.woff2') format('woff2');
+  src: url('./material-symbols-outlined.woff2') format('woff2');
 }
 
 .material-icons {

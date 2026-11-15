@@ -79,7 +79,7 @@ test.describe.serial('Plugin Upload', () => {
     await expect(page.locator('plugin-management')).toBeVisible({ timeout: 10000 });
 
     // Upload plugin ZIP file
-    const testPluginPath = path.resolve(__dirname, '../../../src/assets/test-plugin.zip');
+    const testPluginPath = path.resolve(__dirname, '../../fixtures/test-plugin.zip');
 
     await expect(page.locator(UPLOAD_PLUGIN_BTN)).toBeVisible();
 
@@ -334,7 +334,7 @@ test.describe.serial('Plugin Upload', () => {
 
     await page
       .locator(FILE_INPUT)
-      .setInputFiles(path.resolve(__dirname, '../../../src/assets/test-plugin.zip'));
+      .setInputFiles(path.resolve(__dirname, '../../fixtures/test-plugin.zip'));
     await confirmInstall(page);
     const uploadedCard = page.locator('plugin-management mat-card', {
       hasText: TEST_PLUGIN_NAME,

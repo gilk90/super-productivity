@@ -14,7 +14,6 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { MatDivider } from '@angular/material/divider';
 import { MatFormField } from '@angular/material/form-field';
-import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import {
@@ -74,7 +73,6 @@ const byTitle = <R>(rows: R[], text: string, title: (row: R) => string): R[] => 
   imports: [
     NgTemplateOutlet,
     MatIcon,
-    MatIconButton,
     MatMenu,
     MatMenuContent,
     MatMenuItem,

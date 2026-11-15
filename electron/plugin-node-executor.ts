@@ -530,7 +530,9 @@ class PluginNodeExecutor {
       // Validate request
       this.validateScriptRequest(request);
 
-      // Try direct execution first (faster, safer)
+      // In-process fast path for simple scripts (no child-process spawn per call;
+      // sync-md polls file mtimes through this). NOT a security boundary: see
+      // canExecuteDirectly(). The user's nodeExecution consent is the boundary.
       if (this.canExecuteDirectly(request.script)) {
         const result = await this.executeDirectly(request.script, request.args);
         return {
@@ -579,8 +581,14 @@ class PluginNodeExecutor {
     }
   }
 
+  /**
+   * Routing heuristic only, never a security check. The `vm` context below shares
+   * the host realm's prototypes (e.g. `require.constructor` is the host `Function`),
+   * so a script can trivially reach the main process, and it is handed full `fs`
+   * anyway. Plugins reaching this code already hold a user-granted nodeExecution
+   * consent, which is what grants them full Node power on either path.
+   */
   private canExecuteDirectly(script: string): boolean {
-    // Check if script only uses safe operations
     const dangerousPatterns =
       /require\s*\(\s*['"`](?!fs|path|os)[^'"]+['"`]\s*\)|child_process|exec|spawn|eval|Function|process\.exit/;
     return !dangerousPatterns.test(script);
@@ -592,7 +600,7 @@ class PluginNodeExecutor {
     const path = await import('path');
     const os = await import('os');
 
-    // Create sandboxed context
+    // Scope object for the script; `vm` is used for the timeout, not isolation.
     const sandbox = {
       require: (module: string) => {
         if (module === 'fs') return fs;

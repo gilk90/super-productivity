@@ -1,4 +1,4 @@
-import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick, flush, flushMicrotasks } from '@angular/core/testing';
 import { StartupService } from './startup.service';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { TranslateService } from '@ngx-translate/core';
@@ -175,6 +175,46 @@ describe('StartupService', () => {
     jiraElectronBridge = TestBed.inject(
       JiraElectronBridgeService,
     ) as jasmine.SpyObj<JiraElectronBridgeService>;
+  });
+
+  describe('single-instance check', () => {
+    const run = (answer: string | null): { result: () => boolean | undefined } => {
+      let listener: ((msg: MessageEvent) => void) | undefined;
+      const mockChannel = {
+        postMessage: jasmine.createSpy('postMessage').and.callFake(() => {
+          if (answer) listener?.({ data: answer } as MessageEvent);
+        }),
+        addEventListener: jasmine
+          .createSpy('addEventListener')
+          .and.callFake((_t: string, fn: (msg: MessageEvent) => void) => {
+            listener ??= fn;
+          }),
+        removeEventListener: jasmine.createSpy('removeEventListener'),
+        close: jasmine.createSpy('close'),
+      };
+      spyOn(window, 'BroadcastChannel').and.returnValue(
+        mockChannel as unknown as BroadcastChannel,
+      );
+      let result: boolean | undefined;
+      void (service as unknown as { _checkIsSingleInstance: () => Promise<boolean> })
+        ._checkIsSingleInstance()
+        .then((r) => (result = r));
+      return { result: () => result };
+    };
+
+    it('reports another open tab immediately, without waiting for the timeout', fakeAsync(() => {
+      const { result } = run('alreadyOpenElsewhere');
+      flushMicrotasks();
+      expect(result()).toBe(false);
+    }));
+
+    it('reports a single instance once the 50ms answer window passes', fakeAsync(() => {
+      const { result } = run(null);
+      tick(49);
+      expect(result()).toBeUndefined();
+      tick(1);
+      expect(result()).toBe(true);
+    }));
   });
 
   describe('init', () => {
