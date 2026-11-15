@@ -800,7 +800,8 @@ export interface PluginAPI {
 
   /**
    * Permanently delete a task that is in the archive, together with its archived
-   * subtasks. Active tasks must be deleted with deleteTask.
+   * subtasks, on this and every synced device. Active tasks must be deleted with
+   * deleteTask.
    */
   deleteArchivedTask(taskId: string): Promise<void>;
 

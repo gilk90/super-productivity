@@ -271,9 +271,7 @@ export class PluginAPI implements PluginAPIInterface {
   }
 
   async deleteArchivedTask(taskId: string): Promise<void> {
-    PluginLog.log(
-      `Plugin ${this.#pluginId} requested to delete archived task ${taskId}`,
-    );
+    PluginLog.log(`Plugin ${this.#pluginId} requested to delete archived task ${taskId}`);
     return this.#pluginBridge.deleteArchivedTask(taskId);
   }
 

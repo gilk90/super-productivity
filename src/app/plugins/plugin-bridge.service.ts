@@ -67,6 +67,7 @@ import { PluginUserPersistenceService } from './plugin-user-persistence.service'
 import { listPluginDataKeys, loadPluginPersistedData } from './plugin-data-reader';
 import { PluginConfigService } from './plugin-config.service';
 import { TaskArchiveService } from '../features/archive/task-archive.service';
+import { ArchivedTaskActionsService } from '../features/archive/archived-task-actions.service';
 import { Router } from '@angular/router';
 import { PluginDialogComponent } from './ui/plugin-dialog/plugin-dialog.component';
 import { IS_ELECTRON } from '../app.constants';
@@ -158,6 +159,7 @@ export class PluginBridgeService implements OnDestroy {
   private _pluginUserPersistenceService = inject(PluginUserPersistenceService);
   private _pluginConfigService = inject(PluginConfigService);
   private _taskArchiveService = inject(TaskArchiveService);
+  private _archivedTaskActions = inject(ArchivedTaskActionsService);
   private _router = inject(Router);
   private _injector = inject(Injector);
   private _translateService = inject(TranslateService);
@@ -746,17 +748,9 @@ export class PluginBridgeService implements OnDestroy {
    */
   async getArchivedTasks(): Promise<TaskCopy[]> {
     try {
-      const taskArchive = await this._taskArchiveService.load();
-
-      // Convert the archive format to TaskCopy array
-      const archivedTasks: TaskCopy[] = taskArchive.ids.map((id) => {
-        const task = taskArchive.entities[id];
-        if (!task) {
-          throw new Error(`Archived task with id ${id} not found in entities`);
-        }
-        return task as TaskCopy;
-      });
-
+      // load() only returns ids that have an entity.
+      const { ids, entities } = await this._taskArchiveService.load();
+      const archivedTasks = ids.map((id) => entities[id] as TaskCopy);
       PluginLog.log('PluginBridge: Retrieved archived tasks', {
         count: archivedTasks.length,
       });
@@ -771,9 +765,7 @@ export class PluginBridgeService implements OnDestroy {
    * Get current context tasks
    */
   async getCurrentContextTasks(): Promise<TaskCopy[]> {
-    const contextTasks = await this._workContextService.mainListTasks$
-      .pipe(first())
-      .toPromise();
+    const contextTasks = await firstValueFrom(this._workContextService.mainListTasks$);
     return contextTasks || [];
   }
 
@@ -1017,10 +1009,9 @@ export class PluginBridgeService implements OnDestroy {
 
     try {
       // Get the task with its subtasks
-      const taskWithSubTasks = await this._store
-        .select(selectTaskByIdWithSubTaskData, { id: taskId })
-        .pipe(first())
-        .toPromise();
+      const taskWithSubTasks = await firstValueFrom(
+        this._store.select(selectTaskByIdWithSubTaskData, { id: taskId }),
+      );
 
       if (!taskWithSubTasks) {
         throw new Error(
@@ -1042,36 +1033,19 @@ export class PluginBridgeService implements OnDestroy {
   }
 
   /**
-   * Permanently delete an archived task and all of its archived descendants.
+   * Permanently delete an archived task and all of its archived descendants,
+   * as a synced operation (removed on every synced device).
    */
   async deleteArchivedTask(taskId: string): Promise<void> {
     pluginAssert.string(taskId);
-
     try {
-      const taskArchive = await this._taskArchiveService.load();
-      if (!taskArchive.entities[taskId]) {
+      const removedCount = await this._archivedTaskActions.deletePermanently([taskId]);
+      if (removedCount === 0) {
         throw new Error(
           this._translateService.instant(T.PLUGINS.TASK_NOT_FOUND, { taskId }),
         );
       }
-
-      // Collect the task and every archived descendant, so no orphan is left behind.
-      const idsToDelete = new Set<string>();
-      const queue: string[] = [taskId];
-      while (queue.length) {
-        const id = queue.shift() as string;
-        const archived = taskArchive.entities[id];
-        if (!archived || idsToDelete.has(id)) continue;
-        idsToDelete.add(id);
-        queue.push(...(archived.subTaskIds || []));
-      }
-
-      await this._taskArchiveService.deleteTasks([...idsToDelete]);
-
-      PluginLog.log('PluginBridge: Archived task deleted', {
-        taskId,
-        removedCount: idsToDelete.size,
-      });
+      PluginLog.log('PluginBridge: Archived task deleted', { taskId, removedCount });
     } catch (error) {
       PluginLog.err('PluginBridge: Failed to delete archived task:', error);
       throw error;
@@ -1199,10 +1173,7 @@ export class PluginBridgeService implements OnDestroy {
 
     if (contextType === 'project') {
       // Update project's taskIds to reflect new order
-      const project = await this._projectService
-        .getByIdOnce$(contextId)
-        .pipe(first())
-        .toPromise();
+      const project = await firstValueFrom(this._projectService.getByIdOnce$(contextId));
 
       if (!project) {
         throw new Error(
@@ -1255,10 +1226,7 @@ export class PluginBridgeService implements OnDestroy {
       });
     } else {
       // Update parent task's subTaskIds to reflect new order
-      const parentTask = await this._taskService
-        .getByIdOnce$(contextId)
-        .pipe(first())
-        .toPromise();
+      const parentTask = await firstValueFrom(this._taskService.getByIdOnce$(contextId));
 
       if (!parentTask) {
         throw new Error(

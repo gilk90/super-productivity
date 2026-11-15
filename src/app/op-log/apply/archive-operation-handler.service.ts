@@ -6,6 +6,7 @@ import { PersistentAction } from '../core/persistent-action.interface';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import {
   compressArchive,
+  deleteArchivedTasks,
   flushYoungToOld,
 } from '../../features/archive/store/archive.actions';
 import {
@@ -57,6 +58,7 @@ const ARCHIVE_AFFECTING_ACTION_TYPES: string[] = [
   TaskSharedActions.updateTasks.type,
   flushYoungToOld.type,
   compressArchive.type,
+  deleteArchivedTasks.type,
   TaskSharedActions.deleteProject.type,
   deleteTag.type,
   deleteTags.type,
@@ -102,6 +104,7 @@ export const isArchiveAffectingAction = (action: Action): action is PersistentAc
  * - **moveToArchive**: Writes archived tasks to archiveYoung storage (minus deleted tags)
  * - **restoreTask**: Removes task from archive storage
  * - **flushYoungToOld**: Moves old tasks from archiveYoung to archiveOld
+ * - **deleteArchivedTasks**: Permanently removes the listed tasks from both archive partitions
  * - **deleteProject**: Removes all tasks for the deleted project from archive
  * - **deleteTag/deleteTags**: Removes tag references from archive tasks, deletes orphaned tasks
  * - **deleteTaskRepeatCfg**: Removes repeatCfgId from archive tasks
@@ -212,6 +215,10 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
         await this._handleCompressArchive(action);
         break;
 
+      case deleteArchivedTasks.type:
+        await this._handleDeleteArchivedTasks(action);
+        break;
+
       case TaskSharedActions.deleteProject.type:
         await this._handleDeleteProject(action);
         break;
@@ -272,6 +279,24 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
   private async _handleRestoreTask(action: PersistentAction): Promise<void> {
     const task = (action as ReturnType<typeof TaskSharedActions.restoreTask>).task;
     const taskIds = [task.id, ...task.subTaskIds];
+    const isRemote = !!action.meta?.isRemote;
+    await this._getTaskArchiveService().deleteTasks(
+      taskIds,
+      isRemote ? { isIgnoreDBLock: true } : {},
+    );
+  }
+
+  /**
+   * Permanently removes archived tasks from both archive partitions.
+   *
+   * @localBehavior Executes normally (acquires DB lock)
+   * @remoteBehavior Executes under the TASK_ARCHIVE mutex
+   */
+  private async _handleDeleteArchivedTasks(action: PersistentAction): Promise<void> {
+    const { taskIds } = action as ReturnType<typeof deleteArchivedTasks>;
+    if (!Array.isArray(taskIds) || taskIds.length === 0) {
+      return;
+    }
     const isRemote = !!action.meta?.isRemote;
     await this._getTaskArchiveService().deleteTasks(
       taskIds,
