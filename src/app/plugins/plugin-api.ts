@@ -270,6 +270,13 @@ export class PluginAPI implements PluginAPIInterface {
     return this.#pluginBridge.deleteTask(taskId);
   }
 
+  async deleteArchivedTask(taskId: string): Promise<void> {
+    PluginLog.log(
+      `Plugin ${this.#pluginId} requested to delete archived task ${taskId}`,
+    );
+    return this.#pluginBridge.deleteArchivedTask(taskId);
+  }
+
   async getAllProjects(): Promise<Project[]> {
     PluginLog.log(`Plugin ${this.#pluginId} requested all projects`);
     const projects = await this.#pluginBridge.getAllProjects();

@@ -52,6 +52,7 @@ const ALLOWED_IFRAME_API_METHODS = new Set([
   'updateTask',
   'addTask',
   'deleteTask',
+  'deleteArchivedTask',
   'batchUpdateForProject',
   'reorderTasks',
   'getAllProjects',
@@ -413,6 +414,7 @@ export const createPluginApiScript = (config: PluginIframeConfig): string => {
             callApi('updateTask', options ? [taskId, updates, options] : [taskId, updates]),
           addTask: (taskData) => callApi('addTask', [taskData]),
           deleteTask: (taskId) => callApi('deleteTask', [taskId]),
+          deleteArchivedTask: (taskId) => callApi('deleteArchivedTask', [taskId]),
           batchUpdateForProject: (request) => callApi('batchUpdateForProject', [request]),
 
           // Project methods

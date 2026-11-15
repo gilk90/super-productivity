@@ -39,6 +39,7 @@ const PLUGIN_API_MEMBERS: Record<keyof PluginAPIInterface, true> = {
   updateTask: true,
   addTask: true,
   deleteTask: true,
+  deleteArchivedTask: true,
   batchUpdateForProject: true,
   getAllProjects: true,
   addProject: true,
