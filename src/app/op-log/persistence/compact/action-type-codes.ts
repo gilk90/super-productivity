@@ -35,6 +35,7 @@ import { ActionType } from '../../core/action-types.enum';
 export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   // Archive actions (A)
   [ActionType.ARCHIVE_COMPRESS]: 'AC',
+  [ActionType.ARCHIVE_DELETE_TASKS]: 'AD',
   [ActionType.ARCHIVE_FLUSH_YOUNG_TO_OLD]: 'AF',
   [ActionType.ARCHIVE_REMOTE_DATA_APPLIED]: 'AR',
 

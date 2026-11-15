@@ -1,3 +1,4 @@
+export { ArchivePageComponent } from '../pages/archive-page/archive-page.component';
 export { ArchivedProjectsPageComponent } from '../pages/archived-projects-page/archived-projects-page.component';
 export { ConfigPageComponent } from '../pages/config-page/config-page.component';
 export { SearchPageComponent } from '../pages/search-page/search-page.component';

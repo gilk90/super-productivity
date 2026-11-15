@@ -58,3 +58,40 @@ export const compressArchive = createAction(
     } satisfies PersistentActionMeta,
   }),
 );
+
+/**
+ * Persistent action to permanently delete archived tasks.
+ *
+ * `taskIds` is the complete, pre-computed id list (roots plus every archived
+ * descendant), so applying it is deterministic and needs no archive read on the
+ * receiving client. The archive side effect is an id-keyed delete in both
+ * partitions, so it is idempotent: replaying it, or deleting ids that are no
+ * longer archived, is a no-op.
+ *
+ * It never touches NgRx task state. A concurrent `restoreTask` of the same task
+ * therefore wins in either order: the restored live task stays, and the delete
+ * only finds nothing left in the archive.
+ *
+ * `entityType: 'ALL'` (like compressArchive): the op names no entity, so it is
+ * never part of an entity conflict.
+ *
+ * Known limits (accepted, see the PR):
+ * - Released clients that predate this action apply it as an unknown action
+ *   type: a no-op that is marked applied, so they keep the archived copy for
+ *   good, even after updating. Their archive can reintroduce the task, e.g. in
+ *   a file-based upload or a "use local" SYNC_IMPORT.
+ * - A restore that is then archived again, concurrently with this delete,
+ *   does not converge: clients that apply the delete last lose the task, the
+ *   others keep it archived. The op names no entity, so no conflict is raised.
+ */
+export const deleteArchivedTasks = createAction(
+  '[Archive] Delete Archived Tasks',
+  (actionProps: { taskIds: string[] }) => ({
+    ...actionProps,
+    meta: {
+      isPersistent: true,
+      entityType: 'ALL',
+      opType: OpType.Batch,
+    } satisfies PersistentActionMeta,
+  }),
+);

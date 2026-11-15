@@ -253,6 +253,13 @@ export class MagicNavConfigService {
             } as NavItem,
           ]
         : []),
+      {
+        type: 'route',
+        id: 'archive',
+        label: T.MH.ARCHIVED_TASKS,
+        icon: NAV_SECTION_ICON.ARCHIVED_TASKS,
+        route: '/archive',
+      } as NavItem,
 
       // Help Menu (rendered as mat-menu)
       // Donation links are disabled on native iOS and every macOS desktop build

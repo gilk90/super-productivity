@@ -11,7 +11,10 @@
 
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { syncTimeSpent } from '../../features/time-tracking/store/time-tracking.actions';
-import { flushYoungToOld } from '../../features/archive/store/archive.actions';
+import {
+  deleteArchivedTasks,
+  flushYoungToOld,
+} from '../../features/archive/store/archive.actions';
 import {
   addProject,
   updateProject,
@@ -36,6 +39,10 @@ describe('Persistent Action Types Stability', () => {
       expect(TaskSharedActions.planTasksForToday.type).toBe(
         '[Task Shared] planTasksForToday',
       );
+    });
+
+    it('Archive actions should have stable types', () => {
+      expect(deleteArchivedTasks.type).toBe('[Archive] Delete Archived Tasks');
     });
 
     it('Project actions should have stable types', () => {

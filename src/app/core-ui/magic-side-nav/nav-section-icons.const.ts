@@ -10,4 +10,5 @@ export const NAV_SECTION_ICON = {
   DONATE: 'favorite',
   SETTINGS: 'settings',
   ARCHIVED_PROJECTS: 'archive',
+  ARCHIVED_TASKS: 'inventory_2',
 } as const;

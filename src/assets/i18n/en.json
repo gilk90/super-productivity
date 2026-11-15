@@ -118,6 +118,36 @@
       "CAPTURES_IMPORTED": "{{count}} task(s) added from quick add",
       "CAPTURE_IMPORT_ERROR": "Some quick-add tasks could not be added yet. They are kept and will be retried."
     },
+    "ARCHIVE": {
+      "ACTIONS": "Actions",
+      "BTN_DELETE": "Delete permanently",
+      "BTN_EXPORT": "Export",
+      "BTN_RESTORE": "Restore",
+      "BTN_SHOW_MORE": "Show more",
+      "CLEAR_FILTERS": "Clear filters",
+      "COUNT": "{{shown}} of {{total}} archived tasks",
+      "D_CONFIRM_DELETE": "Permanently delete {{count}} archived task(s) and their subtasks? This cannot be undone. Synced devices remove them too once they run this app version or newer.",
+      "EMPTY": "No archived tasks.",
+      "EXPORT_CSV": "Export as CSV",
+      "EXPORT_MD": "Export as Markdown",
+      "FILTER_ALL_PROJECTS": "All projects",
+      "FILTER_ALL_TAGS": "All tags",
+      "FILTER_FROM": "Completed from",
+      "FILTER_PROJECT": "Project",
+      "FILTER_TAG": "Tag",
+      "FILTER_TO": "Completed until",
+      "LOADING": "Loading archive...",
+      "NO_MATCH": "No archived tasks match the filters.",
+      "ORPHAN_SUBTASK": "Subtask of a task that is no longer archived; it can only be deleted",
+      "S_DELETED": "Permanently deleted {{count}} task(s)",
+      "S_ERROR": "The archive could not be updated",
+      "S_EXPORTED": "Exported {{count}} task(s)",
+      "S_RESTORED": "Restored {{count}} task(s)",
+      "SEARCH": "Search archived tasks",
+      "SELECT_ALL": "Select all shown",
+      "SELECTED": "{{count}} selected",
+      "SUBTASKS": "{{count}} subtasks"
+    },
     "ATTACHMENT": {
       "LOCAL_FILE_UNAVAILABLE": "This attachment is only available on the device where it was added.",
       "COMMAND_UNSUPPORTED": "Command attachments can no longer run commands.",
@@ -3235,7 +3265,8 @@
     "TOGGLE_TRACK_TIME": "Start/stop tracking time",
     "TRIGGER_SYNC": "Sync!",
     "UNPLAN_ALL_TASKS": "Unplan all tasks",
-    "ARCHIVED_PROJECTS": "Archived Projects"
+    "ARCHIVED_PROJECTS": "Archived Projects",
+    "ARCHIVED_TASKS": "Archive"
   },
   "MIGRATE": {
     "C_DOWNLOAD_BACKUP": "Do you want to download a backup of your legacy data (can be used with older versions of Super Productivity)?",
