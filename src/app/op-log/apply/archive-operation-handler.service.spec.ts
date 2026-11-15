@@ -10,7 +10,10 @@ import { TaskArchiveService } from '../../features/archive/task-archive.service'
 import { Task, TaskWithSubTasks } from '../../features/tasks/task.model';
 import { ArchiveModel } from '../../features/archive/archive.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { flushYoungToOld } from '../../features/archive/store/archive.actions';
+import {
+  deleteArchivedTasks,
+  flushYoungToOld,
+} from '../../features/archive/store/archive.actions';
 import { deleteTag, deleteTags } from '../../features/tag/store/tag.actions';
 import { TimeTrackingService } from '../../features/time-tracking/time-tracking.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -30,6 +33,10 @@ describe('isArchiveAffectingAction', () => {
   it('should return true for restoreTask action', () => {
     const action = { type: TaskSharedActions.restoreTask.type };
     expect(isArchiveAffectingAction(action)).toBe(true);
+  });
+
+  it('should return true for deleteArchivedTasks action', () => {
+    expect(isArchiveAffectingAction(deleteArchivedTasks({ taskIds: ['a'] }))).toBe(true);
   });
 
   it('should return true for flushYoungToOld action', () => {
@@ -476,6 +483,55 @@ describe('ArchiveOperationHandler', () => {
         expect(
           mockArchiveService.writeTasksToArchiveForRemoteSync,
         ).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('deleteArchivedTasks action', () => {
+      it('deletes the listed ids from the archive for a remote op', async () => {
+        const action = {
+          ...deleteArchivedTasks({ taskIds: ['task-1', 'sub-1'] }),
+          meta: { isPersistent: true, isRemote: true },
+        } as unknown as PersistentAction;
+
+        await service.handleOperation(action);
+
+        expect(mockTaskArchiveService.deleteTasks).toHaveBeenCalledOnceWith(
+          ['task-1', 'sub-1'],
+          { isIgnoreDBLock: true },
+        );
+      });
+
+      it('deletes the listed ids for a local op too (no pre-dispatch write)', async () => {
+        const action = deleteArchivedTasks({
+          taskIds: ['task-1'],
+        }) as unknown as PersistentAction;
+
+        await service.handleOperation(action);
+
+        expect(mockTaskArchiveService.deleteTasks).toHaveBeenCalledOnceWith(
+          ['task-1'],
+          {},
+        );
+      });
+
+      it('is a no-op for an empty or malformed id list', async () => {
+        await service.handleOperation(
+          deleteArchivedTasks({ taskIds: [] }) as unknown as PersistentAction,
+        );
+        await service.handleOperation({
+          type: deleteArchivedTasks.type,
+          meta: { isPersistent: true, isRemote: true },
+        } as unknown as PersistentAction);
+
+        expect(mockTaskArchiveService.deleteTasks).not.toHaveBeenCalled();
+      });
+
+      it('never touches NgRx task state, so a concurrent restore survives', () => {
+        // The op names no entity and changes no reducer state; it only
+        // removes ids from archive storage.
+        const action = deleteArchivedTasks({ taskIds: ['task-1'] });
+        expect(action.meta.entityType).toBe('ALL');
+        expect(action.meta.opType).toBe(OpType.Batch);
       });
     });
 

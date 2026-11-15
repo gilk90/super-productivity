@@ -15,6 +15,7 @@
 export enum ActionType {
   // Archive actions (A)
   ARCHIVE_COMPRESS = '[Archive] Compress Archive',
+  ARCHIVE_DELETE_TASKS = '[Archive] Delete Archived Tasks',
   ARCHIVE_FLUSH_YOUNG_TO_OLD = '[Archive] Flush Young to Old',
   ARCHIVE_REMOTE_DATA_APPLIED = '[Archive] Remote Archive Data Applied',
 
