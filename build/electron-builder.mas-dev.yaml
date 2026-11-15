@@ -7,6 +7,9 @@ files:
   - '!electron/**/*.test.cjs'
   - '!electron/**/*.js.map'
   - .tmp/angular-dist/**/*
+  # Frontend source maps (~34 MB, measured 2026-11) are only read by an open
+  # DevTools; nothing uses them at runtime, so they stay out of the package.
+  - '!.tmp/angular-dist/**/*.map'
   - 'embedded.provisionprofile'
   # Exclude Nx binaries - they're build tools, not runtime dependencies
   - '!**/@nx/nx-darwin-*/**'
